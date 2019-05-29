@@ -2,10 +2,9 @@
 title: git学习笔记
 date: 2019-05-28 16:00:32
 tags:
- - Git
- - branch
- - revoke
- - confict
+ - git branch
+ - git revoke
+ - git confict
 ---
 
 初学Git命令中遇到的一些坑和一些笔记，希望自己能够回过头来看看吧。

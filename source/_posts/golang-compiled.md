@@ -3,7 +3,7 @@ title: golang编译
 date: 2019-05-28 15:56:47
 tags:
  - golang build
- - ldflags 参数
+ - ldflags
 ---
 
 在golang中有许多种的编译，下面讲一下我自己在编译过程中遇到的一些坑。
