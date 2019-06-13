@@ -53,3 +53,21 @@ func (s *DB) Save(value interface{}) *DB {
 使用``Column``字段tag将会解析成你指定的字段名。
 
 另外在gorm中没有xorm的批量操作，但是据说这将会加入到gorm2.0版本中。
+
+## 4.谨慎使用gorm.Model
+gorm定义了一个简化的表模型结构体：
+```
+type Model struct {
+	ID        uint `gorm:"primary_key"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt *time.Time `sql:"index"`
+}
+```
+还是上面所说，字段ID定义的类似uint并不是很好的选择，另外的三个字段最好按需索取，特别说明``DeletedAt``字段是软删除标识，所以如果你想彻底删除数据表中的数据，不使用下面特定的方式，就会导致你的数据其实还是存在于数据表中，如果数据量级特别大，就会导致很多问题，所以谨慎使用。
+```
+// Delete record permanently with Unscoped
+db.Unscoped().Delete(&order)
+// DELETE FROM orders WHERE id=10;
+```
+
