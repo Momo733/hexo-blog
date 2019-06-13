@@ -52,6 +52,7 @@ RUN go build -ldflags "-s -w" -o mk_service main.go
 FROM alpine:latest as product
 ENV TIME_ZONE Asia/Shanghai
 RUN apk --no-cache add ca-certificates
+RUN apk add tzdata
 RUN apk add bash
 RUN apk add libc6-compat
 RUN apk add libstdc++
@@ -76,9 +77,29 @@ EXPOSE 7333
 
 使用dockerfile多级构建镜像的时候，会存在一个拷贝镜像的问题，我们可以使用``COPY --from``来指定目录，这样就不存在各种文件找不到，丢失的问题了。
 
-另外还要说一下，在运行64位二进制的文件的时候，，执行的时候会报错not found，我们使用file 命令去查看我们的二进制，就会发现在linux上运行的是需要lib64这个依赖包的，而在Alpine中这个是没有的所以需要我们自己去添加依赖``RUN apk add libc6-compat``和`` RUN apk add libstdc++``,，这就是之前我建议构建包裹镜像，如果要求不严格，最好使用Ubuntu等发行版的原因。
+另外还要说一下，在运行64位二进制的文件的时候，执行的时候会报错not found，我们使用file 命令去查看我们的二进制，就会发现在linux上运行的是需要lib64这个依赖包的，而在Alpine中这个是没有的所以需要我们自己去添加依赖``RUN apk add libc6-compat``和`` RUN apk add libstdc++``，这就是之前我建议构建包裹镜像，如果要求不严格，最好使用Ubuntu等发行版的原因。
 
-## 3.部署镜像到多个服务器
+## 3.添加私密文件
+经常能够听到某项目中的数据库密码泄露，其实是因为直接把私密信息写到代码中，是最快捷的方式，因为各种原因最后导致泄漏，为了以防万一，我们必须得保证项目代码泄露的可能性，所以一个统一的密钥管理是非常有必要的，下面将给出几种参考方法。
+### 1.构建统一的敏感数据服务
+专门为所有的服务提供密钥，这种服务系统一般构建在内网之中，登录的时候有一个统一的权限认证，可以说这是一种非常系统的解决方案，针对特别大的系统有很好的帮助，但是这种系统通常情况下也是需要大量的时间去构建，特别小的项目，时间紧，就不是一个很好的选择。
+### 2.使用非对称加密
+非对称加密的算法有许多，经典的是RSA，公钥加密，私钥解密，只要私钥不泄露，可以说很安全。简陋的方法是服务器存储私钥，本地使用公钥，最后运行代码的过程中解密，得到想要的数据。
+### 3.配合Gitlab的变量
+Gitlab本身有一套权限的代码管理，我们把私密文件放置在runner的环境变量中，在运行的时候，直接构建到我们的项目中，这种是我所采用的方法，比较简单方便。
+
+**注意**：在使用docker构建镜像的过程中，不能直接使用``$KEY``来作为参数，
+```
+docker build -t myapp --build-arg ISDEV=true --build-arg DATAKEY=$KEY .
+```
+最后会直接报错``docker build" requires exactly 1 argument``，解决方法是把DATAKEY作为环境变量直接赋值。
+```
+export  DATAKEY=$KEY
+docker build -t myapp --build-arg ISDEV=true --build-arg DATAKEY .
+```
+
+
+## 4.部署镜像到多个服务器
 构建完成docker镜像，当然是需要发布到我们私人的docker hub，相当于是一次数据的备份。
 
 使用``docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $REGISTRY ``来登录到我们私人的docker hub ,当然是先需要在gitlab中配置以上的一些私有的信息变量的。
