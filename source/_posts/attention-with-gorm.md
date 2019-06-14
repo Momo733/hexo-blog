@@ -52,7 +52,6 @@ func (s *DB) Save(value interface{}) *DB {
 
 使用``Column``字段tag将会解析成你指定的字段名。
 
-另外在gorm中没有xorm的批量操作，但是据说这将会加入到gorm2.0版本中。
 
 ## 4.谨慎使用gorm.Model
 gorm定义了一个简化的表模型结构体：
@@ -71,3 +70,4 @@ db.Unscoped().Delete(&order)
 // DELETE FROM orders WHERE id=10;
 ```
 
+另外在gorm中没有xorm的批量操作，但是据说这将会加入到gorm2.0版本中。
