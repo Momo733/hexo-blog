@@ -24,7 +24,7 @@ type User struct {
   IgnoreMe     int     `gorm:"-"` // ignore this field
 }
 ```
-如果是定长的数据，类似md5加密的数据，可以使用``gorm:"type:char(32)"``，这样数据库查询将使用更小的空间，由于是定长字段，将更快的被查询到。gorm指定的string对应的数据类型默认是``varchar(255)``，对于能够模糊估计的一切字段最好确定数据的大小，当数据超出长度255，将会报错。
+如果是定长的数据，类似md5加密的数据，可以使用``gorm:"type:char(32)"``，这样数据库查询将使用更小的空间，``varchar``保留长度在255以内将会额外使用一个字节来存储字符串的长度，超过255则是需要两个字节来保存长度。gorm指定的string对应的数据类型默认是``varchar(255)``，对于能够模糊估计的一切字段最好确定数据的大小，当数据超出长度255，将会报错。
 
 如果能够确定一个值的大小，最好使用``int8 int32 int64 uint8 uint32 uint64``来指定字段的值的范围，这样将更加节省空间，而不是使用``int``类型，因为根据编译的环境不同，该值的范围是不一样的，32位机器``int``值介于-2,147,483,648 到+2,147,483,647之间，如果你仅仅想要作为个年龄的字段类型，那么显然是非常的不合理，同理于在64位的机器上。
 
@@ -51,7 +51,14 @@ func (s *DB) Save(value interface{}) *DB {
 如果你的表不是使用gorm创建，或者字段名称不是遵循下划线命名法，那么你的列表字段将会被gorm使用反射解析成不同的于你数据库的字段名，这会导致错误。
 
 使用``Column``字段tag将会解析成你指定的字段名。
-
+```
+// 重设列名
+type Animal struct {
+    AnimalId    int64     `gorm:"column:beast_id"`         // 设置列名为`beast_id`
+    Birthday    time.Time `gorm:"column:day_of_the_beast"` // 设置列名为`day_of_the_beast`
+    Age         int64     `gorm:"column:age_of_the_beast"` // 设置列名为`age_of_the_beast`
+}
+```
 
 ## 4.谨慎使用gorm.Model
 gorm定义了一个简化的表模型结构体：
