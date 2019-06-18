@@ -45,7 +45,7 @@ func (s *DB) Save(value interface{}) *DB {
 ```
 在``s.New()``将会清除之前来自db结构体中所有的类型关联条件，因为gorm需要支持支持多种数据库，这种类似的bug只是为了支持sqlite。
 
-**更新**：根据我的[PR](https://github.com/jinzhu/gorm/commit/321c636b9da51a621d51b938b404ccd5a131e299)最近版本的gorm版本中已经更新该函数代码。
+**更新**：根据我的[PR](https://github.com/jinzhu/gorm/commit/321c636b9da51a621d51b938b404ccd5a131e299)最近版本的gorm版本中已经更新该函数。
 
 ## 3.特殊字段名
 如果你的表不是使用gorm创建，或者字段名称不是遵循下划线命名法，那么你的列表字段将会被gorm使用反射解析成不同的于你数据库的字段名，这会导致错误。
@@ -76,5 +76,46 @@ type Model struct {
 db.Unscoped().Delete(&order)
 // DELETE FROM orders WHERE id=10;
 ```
+
+## 5.请准确指定表名
+在下面的查询中报错表名未找到，其实gorm会根据用反射你定义的destination struct name和filed name 来作为查询数据库的表名和字段名，所以在下面的这种情况下，即使指定了``Model(&model.Article{})``，并且设置了结构体的TableName()接口，最后也会导致两个结构体的名字不一样报错。
+```
+type Article struct {
+		Id          uint32    `json:"id"`
+		ArticleUuid string    `gorm:"type:varchar(100)" json:"article_uuid"`
+		Title       string    `gorm:"type:varchar(50)" json:"title"`
+		Body        string    `gorm:"type:text" json:"body"`
+		BodyHtml    string    `gorm:"type:text" json:"body_html"`
+		CreatedAt   time.Time `json:"created_at"`
+}
+
+var article []Article
+if err = db.Model(&model.Article{}).Where(`1=1`).Find(&article).Error; err != nil {
+    println(err.Error()) //Error 1146: Table 'naimida.articles' doesn't exist
+    return
+}
+  ```
+
+model.Article
+
+```
+type Article struct {
+	Id          uint32    `json:"id"`
+	ArticleUuid string    `gorm:"type:varchar(100)" json:"article_uuid"`
+	Title       string    `gorm:"type:varchar(50)" json:"title"`
+	Body        string    `gorm:"type:text" json:"body"`
+	BodyHtml    string    `gorm:"type:text" json:"body_html"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+func (article Article) TableName() string {
+	return "article"
+}
+```
+grom是默认使用结构体的复数结构，所以也可以使用``db.SingularTable(true)``这样也不会使用复数去解析结构体的name，也会解决上面的的表名不存在的问题。
+
+但是如果是两个完全不一样的结构体名称，不存着单复数之分，那么在查询的时候最好指定表名，把代码中的``Model(&model.Article{})``换成``Table("article")``就可以了。
+
+
 
 另外在gorm中没有xorm的批量操作，但是据说这将会加入到gorm2.0版本中。
