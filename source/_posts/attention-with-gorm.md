@@ -45,7 +45,7 @@ func (s *DB) Save(value interface{}) *DB {
 ```
 在``s.New()``将会清除之前来自db结构体中所有的类型关联条件，因为gorm需要支持支持多种数据库，这种类似的bug只是为了支持sqlite。
 
-**更新**：根据我的[PR](https://github.com/jinzhu/gorm/commit/321c636b9da51a621d51b938b404ccd5a131e299)最近版本的gorm版本中已经更新该函数。
+**更新**：根据我的[PR](https://github.com/jinzhu/gorm/commit/321c636b9da51a621d51b938b404ccd5a131e299)最近版本的gorm版本中已经更新该函数，修改为``s.New().Table(scope.TableName()).FirstOrCreate(value)``。
 
 ## 3.特殊字段名
 如果你的表不是使用gorm创建，或者字段名称不是遵循下划线命名法，那么你的列表字段将会被gorm使用反射解析成不同的于你数据库的字段名，这会导致错误。
@@ -118,4 +118,4 @@ grom是默认使用结构体的复数结构，所以也可以使用``db.Singular
 
 
 
-另外在gorm中没有xorm的批量操作，但是据说这将会加入到gorm2.0版本中。
+另外在gorm中没有xorm的批量操作，以及sql缓存，但是据说这将会加入到gorm2.0版本中。

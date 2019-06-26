@@ -2,7 +2,7 @@
 title: golang编译
 date: 2019-05-28 15:56:47
 tags:
- - golang build
+ - golang
  - ldflags
 ---
 
