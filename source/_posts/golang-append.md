@@ -99,31 +99,73 @@ func growslice(et *_type, old slice, cap int) slice {
 			}
 		}
 	}
-
-	... //根据不同的情况计算容量的大小
-
-	var p unsafe.Pointer
-	if et.kind&kindNoPointers != 0 {
-		p = mallocgc(capmem, nil, false)
-		// The append() that calls growslice is going to overwrite from old.len to cap (which will be the new length).
-		// Only clear the part that will not be overwritten.
-		memclrNoHeapPointers(add(p, newlenmem), capmem-newlenmem)
-	} else {
-		// Note: can't use rawmem (which avoids zeroing of memory), because then GC can scan uninitialized memory.
-		p = mallocgc(capmem, et, true)
-		if writeBarrier.enabled {
-			// Only shade the pointers in old.array since we know the destination slice p
-			// only contains nil pointers because it has been cleared during alloc.
-			bulkBarrierPreWriteSrcOnly(uintptr(p), uintptr(old.array), lenmem)
+    var overflow bool
+	var lenmem, newlenmem, capmem uintptr
+	// Specialize for common values of et.size.
+	// For 1 we don't need any division/multiplication.
+	// For sys.PtrSize, compiler will optimize division/multiplication into a shift by a constant.
+	// For powers of 2, use a variable shift.
+	switch {
+	case et.size == 1:
+		lenmem = uintptr(old.len)
+		newlenmem = uintptr(cap)
+		capmem = roundupsize(uintptr(newcap))
+		overflow = uintptr(newcap) > maxAlloc
+		newcap = int(capmem)
+	case et.size == sys.PtrSize:
+		lenmem = uintptr(old.len) * sys.PtrSize
+		newlenmem = uintptr(cap) * sys.PtrSize
+		capmem = roundupsize(uintptr(newcap) * sys.PtrSize)
+		overflow = uintptr(newcap) > maxAlloc/sys.PtrSize
+		newcap = int(capmem / sys.PtrSize)
+	case isPowerOfTwo(et.size):
+		var shift uintptr
+		if sys.PtrSize == 8 {
+			// Mask shift for better code generation.
+			shift = uintptr(sys.Ctz64(uint64(et.size))) & 63
+		} else {
+			shift = uintptr(sys.Ctz32(uint32(et.size))) & 31
 		}
+		lenmem = uintptr(old.len) << shift
+		newlenmem = uintptr(cap) << shift
+		capmem = roundupsize(uintptr(newcap) << shift)
+		overflow = uintptr(newcap) > (maxAlloc >> shift)
+		newcap = int(capmem >> shift)
+	default:
+		lenmem = uintptr(old.len) * et.size
+		newlenmem = uintptr(cap) * et.size
+		capmem, overflow = math.MulUintptr(et.size, uintptr(newcap))
+		capmem = roundupsize(capmem)
+		newcap = int(capmem / et.size)
 	}
-	memmove(p, old.array, lenmem)
+
+    ...//申请内存p
 
 	return slice{p, old.len, newcap}
 }
 ```
 
 可以看到在len小于1024的时候，扩容是按照doublecap的规则来双倍递增，大于等于1024的时候是按照原来的1/4来循环增加容量，直至符合数据所需要的容量要求。而且一旦扩容后可以看到返回的数据都是一个新的``slice{}``，指针p也指向一个新的数组地址，所以说扩容必定是会导致最后的切片地址改变。
+
+通过下面的``代码块 - 3 ``更好的理解扩容的大小。
+```
+    var p = []int{}
+	var p1 = []int{}
+	var p2 = []int{}
+	p = make([]int, 2)
+	p2 = make([]int, 1024)
+	for i := 0; i < 2; i++ {
+		p = append(p, i)
+		p1 = append(p1, i)
+		p2 = append(p2, i)
+		println(i, cap(p), cap(p1), cap(p2))
+	}
+	//0 4 1 1280
+	//1 4 2 1280
+```
+<center> 代码块 - 3</center >
+
+指定容量大小的时候，添加一个元素都会导致扩容，即使容量完全足够的情况下。只是在1024容量大小为分界点，扩容算法不相同，小于1024容量的时候，如果切片的容量被使用了一般，直接会导致切片扩容。而对于空切片来说，是直接按照2倍的方式扩容。
 
 那么再回到上个问题，我们可以看到在``代码块 - 2 ``中对于切片d有赋值的时候，d的地址完全改变所以发生了扩容以及赋值。在没有赋值操作的时候，append()其实也是扩容创建了一个新的切片，但是没有赋值，而且还是因为**append()是先计算切片需要保存数据的容量是否足够，然后计算了容量空间之后生成新的切片，再进行值的拷贝，而不是在一边拷贝，一边计算剩余的空间，否则就会修改切片d的数据了**。
 
