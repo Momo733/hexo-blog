@@ -58,7 +58,7 @@ type slice struct {
 在代码第5行如果把append()的赋值操作去掉切片d的结构没有任何变化，但是如果赋值到切片d这个时候d的地址和内容都发生了变化，这就和append()的内部扩容复制相关了。
 
 ## 2.append的扩容
-append()的扩容代码也是位于``src/suntime/silce.go``中，源代码如下：
+append()的扩容代码也是位于``src/suntime/silce.go``中，该版本为go1.12源代码如下：
 ```
 func growslice(et *_type, old slice, cap int) slice {
 	if raceenabled {
@@ -149,7 +149,7 @@ func growslice(et *_type, old slice, cap int) slice {
 
 通过下面的``代码块 - 3 ``更好的理解扩容的大小。
 ```
-    var p = []int{}
+        var p = []int{}
 	var p1 = []int{}
 	var p2 = []int{}
 	p = make([]int, 2)
