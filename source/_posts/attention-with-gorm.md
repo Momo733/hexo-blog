@@ -123,4 +123,11 @@ grom是默认使用结构体的复数结构，所以也可以使用``db.Singular
 
 另外如果表中有``deleted_at``字段，那么就会在查询的条件中加入``deleted_at IS NULL``只查询不是被软删除的数据，如果需要查询到所有的数据就添加``Unscoped()``函数就可以了。
 
+## 7.QueryExpr()没有warpped
+在gorm中使用子查询的时候，例如`` SELECT * FROM user WHERE id = (SELECT * FROM user LIMIT 1);``子查询代表括号中的内容，但是使用``QueryExpr()``不会添加括号，最后就会导致sql语法错误。
+
+1.在使用``QueryExpr()``把对应的参数使用括号包裹，免除语法错误
+
+2.使用``SubQuery``作为子查询执行语法，这是对于``QueryExpr()``的括号包装
+
 另外在gorm中没有xorm的批量操作，以及sql缓存，但是据说这将会加入到gorm2.0版本中。
